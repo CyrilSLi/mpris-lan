@@ -1,0 +1,88 @@
+{
+    "$schema": "http://json-schema.org/draft/2020-12/schema",
+    "title": "control",
+    "type": "object",
+    "properties": {
+        "players": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "uniqueItems": true,
+            "minItems": 1
+        },
+        "command": {
+            "type": "string",
+            "enum": ["play", "pause", "play-pause", "stop", "next", "previous", "position", "volume", "shuffle", "loop"]
+        }
+    },
+    "required": ["players", "command"],
+    "allOf": [{
+        "if": {
+            "properties": {
+                "command": { "const": "position" }
+            }
+        },
+        "then": {
+            "properties": {
+                "value": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        }
+    }, {
+        "if": {
+            "properties": {
+                "command": { "const": "volume" }
+            }
+        },
+        "then": {
+            "properties": {
+                "value": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1
+                }
+            }
+        }
+    }, {
+        "if": {
+            "properties": {
+                "command": { "const": "shuffle" }
+            }
+        },
+        "then": {
+            "properties": {
+                "value": {
+                    "type": "string",
+                    "enum": ["on", "off", "toggle"]
+                }
+            }
+        }
+    }, {
+        "if": {
+            "properties": {
+                "command": { "const": "loop" }
+            }
+        },
+        "then": {
+            "properties": {
+                "value": {
+                    "type": "string",
+                    "enum": ["none", "track", "playlist"]
+                }
+            }
+        }
+    }, {
+        "if": {
+            "properties": {
+                "command": { "enum": ["position", "volume", "shuffle", "loop"] }
+            }
+        },
+        "then": {
+            "required": ["value"]
+        }
+    }],
+    "unevaluatedProperties": false
+}
