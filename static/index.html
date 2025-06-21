@@ -7,6 +7,7 @@
     <script src="brython_stdlib.min.js"></script>
     <style>
         * {
+            touch-action: manipulation;
             margin: 0px;
             padding: 0px;
             -webkit-appearance: none;
@@ -38,6 +39,7 @@
             height: calc(10 * var(--pc));
             border-radius: calc(2 * var(--pc));
             border: calc(1 * var(--pc)) solid black;
+            cursor: pointer;
         }
         input[type="checkbox"]:checked {
             background-color: black;
@@ -110,6 +112,7 @@
         img.icon {
             width: calc(10 * var(--pc));
             height: calc(10 * var(--pc));
+            cursor: pointer;
         }
         div.row {
             display: flex;
@@ -144,6 +147,8 @@
     </noscript>
     <script type="text/python">
         from browser import document, html, ajax, window
+        for i in document.select ("#app *"):
+            i.attrs ["draggable"] = "false"
     </script>
     <div id="app">
         <div class="player">
