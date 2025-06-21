@@ -1,18 +1,31 @@
 # Built-in modules:
-import io, json, subprocess
+import io, json, logging, subprocess
 from datetime import datetime
 from html import unescape
 
 # Third-party modules:
 from flask import Flask, redirect, request, jsonify, send_file
+from flask_cors import CORS
+from werkzeug.serving import make_server
 import filetype, jsonschema
 
 app = Flask (__name__)
+CORS (app)
 thumbnails = {}
 
 with open ("control_schema.json") as f:
     control_schema = json.load (f)
 mpris_keys = ["playerInstance", "position", "mpris:length", "status", "volume", "shuffle", "loop", "title", "artist", "mpris:artUrl"]
+
+def run_playerctl (cmd):
+    run = subprocess.run (cmd, capture_output = True)
+    try:
+        run.check_returncode ()
+    except subprocess.CalledProcessError:
+        if "No player could handle this command" in run.stderr.decode ("utf-8"):
+            return (jsonify ({}), 200)
+        return (jsonify ({"error": "playerctl command failed"}), 500)
+    return run
 
 @app.route ("/mpris", methods = ["GET", "POST"])
 def mpris ():
@@ -26,20 +39,17 @@ def mpris ():
             jsonschema.validate (req, schema)
         except jsonschema.ValidationError as e:
             return jsonify ({"error": str (e)}), 400
-        control = subprocess.run (["playerctl", "-p", ",".join (req ["players"]), req ["command"], str (req.get ("value", ""))])
-        control.check_returncode ()
+        return_args = run_playerctl (["playerctl", "-p", ",".join (req ["players"]), req ["command"], str (req.get ("value", ""))])
+        if isinstance (return_args, tuple):
+            return return_args
 
-    status = subprocess.run (["playerctl", "-a", "metadata", "-f", "{{markup_escape(" + ")}}'{{markup_escape(".join (mpris_keys) + ")}}'"], capture_output = True)
-    try:
-        status.check_returncode ()
-    except subprocess.CalledProcessError:
-        if "No player could handle this command" in status.stderr.decode ("utf-8"):
-            return jsonify ({})
-        return jsonify ({"error": "playerctl command failed"}), 500
+    return_args = run_playerctl (["playerctl", "-a", "metadata", "-f", "{{markup_escape(" + ")}}'{{markup_escape(".join (mpris_keys) + ")}}'"])
+    if isinstance (return_args, tuple):
+        return return_args
 
     thumbnails, resp = {}, {"__timestamp__": datetime.now ().timestamp ()}
     default = lambda x: None if x == "" else unescape (x)
-    for player in status.stdout.decode ("utf-8").strip ().split ("\n"):
+    for player in return_args.stdout.decode ("utf-8").strip ().split ("\n"):
         values = player.split ("'")
         resp [default (values [0])] = {
             "position": int (values [1]) / 1000000, # Microseconds to seconds
@@ -76,5 +86,11 @@ def thumbnail ():
 def test_redir ():
     return redirect ("/static/file-earmark-music.svg", code = 307)
 
+@app.route ("/", methods = ["GET"])
+def index ():
+    return redirect ("/static/index.html", code = 307)
+
 if __name__ == "__main__":
-    serve (app, host = "0.0.0.0", port = 8080)
+    server = make_server ("0.0.0.0", 58468, app)
+    logging.getLogger ("werkzeug").setLevel (logging.ERROR)
+    server.serve_forever ()

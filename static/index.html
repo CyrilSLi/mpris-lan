@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>mpris-lan</title>
+    <meta charset="utf-8">
+    <script src="brython.min.js"></script>
+    <script src="brython_stdlib.min.js"></script>
+    <style>
+        * {
+            margin: 0px;
+            padding: 0px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            font-weight: normal;
+            border: none;
+            --pc: calc(min(100dvw, calc(100dvh / 16 * 9)) / 100);
+            --outside-bg-color: #bfbfbf;
+            --app-bg-color: white;
+            --player-bg-color: #dfdfdf;
+            --slider-color: #7f7f7f;
+        }
+        body {
+            background-color: var(--outside-bg-color);
+            height: 100dvh;
+            display: flex;
+            justify-content: center;
+        }
+        #app {
+            width: calc(97 * var(--pc));
+            background-color: var(--app-bg-color);
+            display: flex;
+            flex-direction: column;
+            padding: calc(1.5 * var(--pc));
+        }
+        input[type="checkbox"] {
+            width: calc(10 * var(--pc));
+            height: calc(10 * var(--pc));
+            border-radius: calc(2 * var(--pc));
+            border: calc(1 * var(--pc)) solid black;
+        }
+        input[type="checkbox"]:checked {
+            background-color: black;
+        }
+        div.player {
+            margin: calc(1.5 * var(--pc));
+            background-color: var(--player-bg-color);
+            display: flex;
+            padding: calc(3 * var(--pc));
+            border-radius: calc(4 * var(--pc));
+            flex-direction: column;
+        }
+        div.player > :not(:last-child) {
+            margin-bottom: calc(3 * var(--pc));
+        }
+        div.player > :first-child > :last-child {
+            flex: 1;
+        }
+        input[type="range"] {
+            flex: 1;
+            min-width: 0px;
+            height: calc(2 * var(--pc));
+            padding: 0px calc(3 * var(--pc));
+            background-color: var(--slider-color);
+            background-clip: content-box;
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            opacity: 1;
+            appearance: none;
+            -webkit-appearance: none;
+            width: calc(7 * var(--pc));
+            height: calc(7 * var(--pc));
+            border-radius: 50%;
+            background: black;
+            cursor: pointer;
+        }
+        input[type="range"]::-moz-range-thumb {
+            opacity: 1;
+            appearance: none;
+            -webkit-appearance: none;
+            width: calc(7 * var(--pc));
+            height: calc(7 * var(--pc));
+            border-radius: 50%;
+            background: black;
+            cursor: pointer;
+        }
+        p, h1, h2, h3, h4, h5, h6 {
+            color: black;
+            font-family: Arial, sans-serif;
+            font-weight: normal;
+            text-wrap: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #title {
+            font-size: calc(6 * var(--pc));
+            padding: 0px calc(3 * var(--pc));
+            display: inline;
+            font-weight: bold;
+            flex: 1;
+            text-align: center;
+        }
+        img.thumb {
+            width: calc(23 * var(--pc));
+            height: calc(23 * var(--pc));
+            padding: 0px calc(5 * var(--pc));
+            object-fit: cover;
+        }
+        img.icon {
+            width: calc(10 * var(--pc));
+            height: calc(10 * var(--pc));
+        }
+        div.row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        div.col {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+        p.annotation, p.artist {
+            font-size: calc(4 * var(--pc));
+        }
+        p.artist {
+            padding: 0px calc(5 * var(--pc));
+            flex: 1;
+        }
+        p.title, p.position {
+            font-size: calc(5 * var(--pc));
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body onload="brython(0)">
+    <noscript>
+        <p style = "margin: 20px; font-size: 20px; color: black;">JavaScript is required to use this website.</p>
+    </noscript>
+    <script type="text/python">
+        from browser import document, html, ajax, window
+    </script>
+    <div id="app">
+        <div class="player">
+            <div class="row">
+                <input type="checkbox" id="checkbox" />
+                <h1 id="title">mpris-lan</h1>
+            </div>
+        </div>
+        <div class="player">
+            <div class="row">
+                <div class="col">
+                    <input type="checkbox" id="checkbox2" />
+                    <img class="icon" src="trash3-fill.svg">
+                </div>
+                <img class="thumb" src="/thumbnail">
+                <div class="col">
+                    <div class="row">
+                        <img class="icon" src="skip-backward-fill.svg">
+                        <img class="icon" src="play-fill.svg">
+                        <img class="icon" src="skip-forward-fill.svg">
+                    </div>
+                    <div class="row">
+                        <img class="icon" src="x-circle-fill.svg">
+                        <div class="col">
+                            <p class="annotation">&lt;- Shuffle</p>
+                            <p class="annotation">Repeat -></p>
+                        </div>
+                        <img class="icon" src="x-circle-fill.svg">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <img class="icon" src="rewind-fill.svg">
+                <input type="range" min="0" max="1" value="0.5" step="any" class="position" />
+                <img class="icon" src="fast-forward-fill.svg">
+            </div>
+            <div class="row">
+                <p class="position">00:00</p>
+                <p class="annotation artist">Artist Artist Artist Artist Artist Artist Artist Artist Artist Artist Artist</p>
+                <p class="position">00:00</p>
+            </div>
+            <div class="row">
+                <p class="title">Title Title Title Title Title Title Title Title Title Title</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
