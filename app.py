@@ -1,6 +1,7 @@
 # Built-in modules:
 import io, json, logging, subprocess
 from datetime import datetime
+from hashlib import sha256
 from html import unescape
 
 # Third-party modules:
@@ -11,7 +12,7 @@ import filetype, jsonschema
 
 app = Flask (__name__)
 CORS (app)
-thumbnails = {}
+thumbnails, thumb_files = {}, {}
 
 with open ("control_schema.json") as f:
     control_schema = json.load (f)
@@ -29,8 +30,7 @@ def run_playerctl (cmd):
 
 @app.route ("/mpris", methods = ["GET", "POST"])
 def mpris ():
-    global control_schema, mpris_keys, thumbnails
-
+    global control_schema, mpris_keys, thumb_files, thumbnails
     if request.method == "POST" and request.json:
         req = request.json
         schema = control_schema.copy ()
@@ -43,48 +43,62 @@ def mpris ():
         if isinstance (return_args, tuple):
             return return_args
 
-    return_args = run_playerctl (["playerctl", "-a", "metadata", "-f", "{{markup_escape(" + ")}}'{{markup_escape(".join (mpris_keys) + ")}}'"])
+    return_args = run_playerctl (["playerctl", "-a", "metadata", "-f", "{{markup_escape(" + ")}}'{{markup_escape(".join (mpris_keys) + ")}}"])
     if isinstance (return_args, tuple):
         return return_args
 
-    thumbnails, resp = {}, {"__timestamp__": datetime.now ().timestamp ()}
+    thumbnails = {}
+    resp = {
+        "__timestamp__": datetime.now ().timestamp (),
+        "players": []
+    }
     default = lambda x: None if x == "" else unescape (x)
     for player in return_args.stdout.decode ("utf-8").strip ().split ("\n"):
         values = player.split ("'")
-        resp [default (values [0])] = {
-            "position": int (values [1]) / 1000000, # Microseconds to seconds
-            "length": int (values [2]) / 1000000,
+        resp ["players"].append ({
+            "playerInstance": default (values [0]),
+            "position": int (values [1] or 0) / 1000000, # Microseconds to seconds
+            "length": int (values [2] or 0) / 1000000,
             "status": default (values [3]),
             "volume": float (values [4]),
             "shuffle": default (values [5]),
             "loop": default (values [6]),
             "title": default (values [7]),
-            "artist": default (values [8])
-        }
-        thumbnails [default (values [0])] = default (values [9]) or None
-
+            "artist": default (values [8]),
+        })
+        thumbnails [default (values [0])] = default (values [-1]) or None
+    for i in thumb_files.copy ():
+        if i not in thumbnails:
+            del thumb_files [i]
     return jsonify (resp)
 
 @app.route ("/thumbnail", methods = ["GET"])
 def thumbnail ():
-    global thumbnails
-    placeholder = send_file (open ("static/file-earmark-music.svg", "rb"), mimetype = "image/svg+xml")
-    player = request.args.get ("player")
-    if thumbnails.get (player) is None:
-        return placeholder
-    img = subprocess.run (["curl", "-s", thumbnails [player]], capture_output = True)
-    try:
-        img.check_returncode ()
-    except subprocess.CalledProcessError:
-        return placeholder
-    kind = filetype.guess (img.stdout)
-    if kind is None:
-        return placeholder
-    return send_file (io.BytesIO (img.stdout), mimetype = kind.mime)
+    global thumbnails, thumb_files
+    placeholder = "/static/file-earmark-music.svg"
+    thumb_hash = request.args.get ("hash")
+    if thumb_hash is not None:
+        for i in thumb_files.values ():
+            if i [0] == thumb_hash:
+                kind = filetype.guess (i [1])
+                return send_file (io.BytesIO (i [1]), mimetype = kind.mime)
+        return send_file ("static/file-earmark-music.svg", mimetype = "image/svg+xml")
 
-@app.route ("/test-redir", methods = ["GET"])
-def test_redir ():
-    return redirect ("/static/file-earmark-music.svg", code = 307)
+    resp = {}
+    for player, uri in thumbnails.items ():
+        if uri is None:
+            resp [player] = placeholder
+            continue
+        img = subprocess.run (["curl", "-s", uri], capture_output = True)
+        try:
+            img.check_returncode ()
+        except subprocess.CalledProcessError:
+            resp [player] = placeholder
+            continue
+        thumb_hash = sha256 (img.stdout).hexdigest ()
+        thumb_files [player] = (thumb_hash, img.stdout)
+        resp [player] = f"/thumbnail?hash={thumb_hash}"
+    return jsonify (resp)
 
 @app.route ("/", methods = ["GET"])
 def index ():

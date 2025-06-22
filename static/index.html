@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <script src="brython.min.js"></script>
     <script src="brython_stdlib.min.js"></script>
+    <link rel="icon" href="file-earmark-music.svg" type="image/svg+xml">
     <style>
         * {
             touch-action: manipulation;
@@ -33,6 +34,7 @@
             display: flex;
             flex-direction: column;
             padding: calc(1.5 * var(--pc));
+            overflow-y: auto;
         }
         input[type="checkbox"] {
             width: calc(10 * var(--pc));
@@ -44,7 +46,7 @@
         input[type="checkbox"]:checked {
             background-color: black;
         }
-        div.player {
+        div.row-item {
             margin: calc(1.5 * var(--pc));
             background-color: var(--player-bg-color);
             display: flex;
@@ -52,10 +54,13 @@
             border-radius: calc(4 * var(--pc));
             flex-direction: column;
         }
-        div.player > :not(:last-child) {
+        div.row-item > :not(:last-child) {
             margin-bottom: calc(3 * var(--pc));
         }
-        div.player > :first-child > :last-child {
+        #template {
+            display: none;
+        }
+        div.row-item > :first-child > .col:last-child {
             flex: 1;
         }
         input[type="range"] {
@@ -94,19 +99,18 @@
             text-wrap: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            text-align: center;
         }
         #title {
             font-size: calc(6 * var(--pc));
-            padding: 0px calc(3 * var(--pc));
             display: inline;
             font-weight: bold;
             flex: 1;
-            text-align: center;
         }
-        img.thumb {
+        img.thumbnail {
             width: calc(23 * var(--pc));
             height: calc(23 * var(--pc));
-            padding: 0px calc(5 * var(--pc));
+            padding: 0px calc(4 * var(--pc));
             object-fit: cover;
         }
         img.icon {
@@ -131,6 +135,9 @@
         p.annotation, p.artist {
             font-size: calc(4 * var(--pc));
         }
+        p.title {
+            flex: 1;
+        }
         p.artist {
             padding: 0px calc(5 * var(--pc));
             flex: 1;
@@ -146,52 +153,211 @@
         <p style = "margin: 20px; font-size: 20px; color: black;">JavaScript is required to use this website.</p>
     </noscript>
     <script type="text/python">
-        from browser import document, html, ajax, window
+        from browser import ajax, document, window
+
         for i in document.select ("#app *"):
             i.attrs ["draggable"] = "false"
+        selected = set ()
+        last_poll = {"__timestamp__": 0, "players": []}
+        poll_id = -1 # Invalid interval ID
+
+        poll_freq = 830 # ms
+        thumb_freq = 2000
+
+        def set_thumb ():
+            def complete (res):
+                for i in document.select ("[mpris-player]"):
+                    i.getElementsByClassName ("thumbnail") [0].src = res.json.get (i.attrs ["mpris-player"], "file-earmark-music.svg")
+            if len (document.select ("[mpris-player]")):
+                ajax.get ("/thumbnail", oncomplete = complete, cache = True)
+        window.setInterval (set_thumb, thumb_freq)
+
+        def format_time (time):
+            seconds = int (time)
+            if seconds < 3600:
+                return f"{seconds // 60}:{(seconds % 60):02}"
+            else:
+                return f"{seconds // 3600}:{(seconds // 60) % 60:02}:{(seconds % 60):02}"
+
+        def restart_poll ():
+            global poll_id
+            window.clearInterval (poll_id)
+            window.setTimeout (lambda: ajax.get ("/mpris", oncomplete = poll, cache = True), 0)
+            poll_id = window.setInterval (lambda: ajax.get ("/mpris", oncomplete = poll, cache = True), poll_freq)
+
+        def range_down (ev):
+            ev.stopPropagation ()
+            ev.target.attrs ["is-dragging"] = "true"
+        def range_up (ev):
+            ev.stopPropagation ()
+            click (ev)
+            if "is-dragging" in ev.target.attrs:
+                del ev.target.attrs ["is-dragging"]
+        def range_input (ev):
+            ev.stopPropagation ()
+            player = ev.target.closest (".player")
+            playerInstance = player.attrs.get ("mpris-player")
+            for i in last_poll ["players"]:
+                if i ["playerInstance"] == playerInstance:
+                    player.getElementsByClassName ("pos-current") [0].textContent = format_time (float (ev.target.value) * float (i ["length"]))
+
+        def num_players (num):
+            curr_num = len (document.getElementsByClassName ("player"))
+            if curr_num > num:
+                for i in range (curr_num - num):
+                    document.getElementsByClassName ("player") [-1].remove ()
+            elif curr_num < num:
+                for i in range (num - curr_num):
+                    el = document ["template"].cloneNode (True)
+                    el.classList.add ("player")
+                    el.bind ("click", click)
+                    for j in el.select ("input[type='range']"):
+                        j.bind ("pointerdown", range_down)
+                        j.bind ("pointerup", range_up)
+                        j.bind ("input", range_input)
+                    del el.attrs ["id"]
+                    document.getElementById ("app").appendChild (el)
+
+        def click (ev):
+            global selected, last_poll
+            ev.stopPropagation ()
+            playerInstance = ev.target.closest (".player").attrs.get ("mpris-player")
+            if playerInstance is None:
+                return
+            el = ev.target
+            cmd = {
+                "players": list (selected.union ({playerInstance})),
+            }
+            if el.attrs.get ("mpris-cmd") is None:
+                return
+            cmd ["command"] = el.attrs ["mpris-cmd"]
+            if el.attrs.get ("mpris-val"):
+                cmd ["value"] = el.attrs ["mpris-val"]
+            elif el.attrs.get ("mpris-action"):
+                player = next ((p for p in last_poll ["players"] if p ["playerInstance"] == playerInstance), None)
+                if player is None:
+                    return
+                cmd ["players"] = [playerInstance] # Actions can only be applied to one player
+                if el.attrs ["mpris-action"] == "rewind":
+                    cmd ["value"] = max (float (player ["position"]) - 10, 0)
+                elif el.attrs ["mpris-action"] == "forward":
+                    cmd ["value"] = min (float (player ["position"]) + 10, player ["length"])
+                elif el.attrs ["mpris-action"] == "seek":
+                    cmd ["value"] = float (el.value) * float (player ["length"])
+                else:
+                    return
+            req = ajax.Ajax ()
+            req.bind ("complete", poll)
+            req.open ("POST", "/mpris", True)
+            req.set_header ("Content-Type", "application/json")
+            req.send (window.JSON.stringify (cmd))
+            restart_poll ()
+
+        def poll (res):
+            global last_poll
+            if not res.json:
+                if len (document.select ("[mpris-player]")):
+                    num_players (0)
+                num_players (1)
+                return
+            elif "error" in res.json:
+                window.console.error (res.json ["error"])
+                return
+            elif res.json ["__timestamp__"] <= last_poll ["__timestamp__"]:
+                window.console.warn ("Poll received out of order")
+                return
+            last_poll = res.json
+            players = res.json ["players"]
+            num_players (len (players))
+            for p, el in zip (players, document.getElementsByClassName ("player")):
+                el.attrs ["mpris-player"] = p ["playerInstance"]
+                select = lambda x: el.querySelector (x)
+                default = lambda key: p [key] or "N/A"
+                def choose (opts, key, default = "x-circle-fill.svg"):
+                    return opts.get (p [key].lower (), default)
+                select ("[mpris-cmd='play-pause']").src = choose ({
+                    "playing": "pause-fill.svg",
+                    "paused": "play-fill.svg"
+                }, "status")
+                select ("[mpris-cmd='loop']").src = choose ({
+                    "none": "x-circle-fill.svg",
+                    "track": "repeat-1.svg",
+                    "playlist": "repeat.svg"
+                }, "loop")
+                select ("[mpris-cmd='loop']").attrs ["mpris-val"] = choose ({
+                    "none": "playlist",
+                    "track": "none",
+                    "playlist": "track"
+                }, "loop", "playlist")
+                select ("[mpris-cmd='shuffle']").src = choose ({
+                    "false": "x-circle-fill.svg",
+                    "true": "shuffle.svg"
+                }, "shuffle")
+                select (".pos-total").textContent = format_time (p ["length"])
+                if select ("input[mpris-cmd='position']").attrs.get ("is-dragging") is None:
+                    select ("input[mpris-cmd='position']").value = p ["position"] / p ["length"] if p ["length"] > 0 else 0
+                    select (".pos-current").textContent = format_time (p ["position"])
+                select (".artist").textContent = p ["artist"] or p ["playerInstance"] or "N/A"
+                select (".title").textContent = default ("title")
+
+        def site_disable ():
+            global poll_id, selected
+            window.clearInterval (poll_id)
+            selected = set ()
+            num_players (0)
+            num_players (1)
+            document ["enable"].src = "toggle-off.svg"
+        def site_enable ():
+            restart_poll ()
+            document ["enable"].src = "toggle-on.svg"
+
+        document ["enable"].bind ("click", lambda ev: site_enable () if "toggle-off.svg" in ev.target.src else site_disable ())
+        document.bind ("visibilitychange", lambda ev: site_disable () if document.hidden else site_enable ())   
+        restart_poll ()
     </script>
     <div id="app">
-        <div class="player">
+        <div class="row-item">
             <div class="row">
                 <input type="checkbox" id="checkbox" />
                 <h1 id="title">mpris-lan</h1>
+                <img class="icon" src="toggle-on.svg" id="enable">
             </div>
         </div>
-        <div class="player">
+        <div class="row-item" id="template">
             <div class="row">
                 <div class="col">
                     <input type="checkbox" id="checkbox2" />
-                    <img class="icon" src="trash3-fill.svg">
+                    <img class="icon" mpris-cmd="stop" src="trash3-fill.svg">
                 </div>
-                <img class="thumb" src="/thumbnail">
+                <img class="thumbnail" src="/static/file-earmark-music.svg">
                 <div class="col">
                     <div class="row">
-                        <img class="icon" src="skip-backward-fill.svg">
-                        <img class="icon" src="play-fill.svg">
-                        <img class="icon" src="skip-forward-fill.svg">
+                        <img class="icon" mpris-cmd="previous" src="skip-backward-fill.svg">
+                        <img class="icon" mpris-cmd="play-pause" src="x-circle-fill.svg">
+                        <img class="icon" mpris-cmd="next" src="skip-forward-fill.svg">
                     </div>
                     <div class="row">
-                        <img class="icon" src="x-circle-fill.svg">
+                        <img class="icon" mpris-cmd="loop" mpris-val="playlist" src="x-circle-fill.svg">
                         <div class="col">
-                            <p class="annotation">&lt;- Shuffle</p>
-                            <p class="annotation">Repeat -></p>
+                            <p class="annotation">&lt;- Loop</p>
+                            <p class="annotation">Shuffle -></p>
                         </div>
-                        <img class="icon" src="x-circle-fill.svg">
+                        <img class="icon" mpris-cmd="shuffle" mpris-val="toggle" src="x-circle-fill.svg">
                     </div>
                 </div>
             </div>
             <div class="row">
-                <img class="icon" src="rewind-fill.svg">
-                <input type="range" min="0" max="1" value="0.5" step="any" class="position" />
-                <img class="icon" src="fast-forward-fill.svg">
+                <img class="icon" mpris-cmd="position" mpris-action="rewind" src="rewind-fill.svg">
+                <input type="range" min="0" max="1" value="0.5" step="any" mpris-cmd="position" mpris-action="seek" />
+                <img class="icon" mpris-cmd="position" mpris-action="forward" src="fast-forward-fill.svg">
             </div>
             <div class="row">
-                <p class="position">00:00</p>
-                <p class="annotation artist">Artist Artist Artist Artist Artist Artist Artist Artist Artist Artist Artist</p>
-                <p class="position">00:00</p>
+                <p class="position pos-current">0:00</p>
+                <p class="annotation artist">Artist</p>
+                <p class="position pos-total">0:00</p>
             </div>
             <div class="row">
-                <p class="title">Title Title Title Title Title Title Title Title Title Title</p>
+                <p class="title">Title</p>
             </div>
         </div>
     </div>
