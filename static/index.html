@@ -164,11 +164,11 @@
         last_poll = {"__timestamp__": 0, "players": []}
         poll_id, thumb_id, scroll_id = -1, -1, -1 # Invalid interval IDs
 
-        poll_freq = 830     # ms
-        thumb_freq = 2000   # ms
-        scroll_freq = 25    # ms
-        scroll_delta = 1    # px
-        scroll_pause = 80   # times scroll_freq in ms
+        poll_freq = 830      # ms
+        thumb_freq = 2000    # ms
+        scroll_freq = 25     # ms
+        scroll_delta = 0.25  # --pc
+        scroll_pause = 80    # times scroll_freq in ms
 
         def thumb_complete (res):
             for i in document.select ("[mpris-player]"):
@@ -184,7 +184,7 @@
                 if overflow <= 0:
                     i.style.right = "0px"
                     continue
-                offset = int (i.style.right [ : -2])
+                offset = float (i.style.right [ : -2])
                 pause = int (i.attrs.get ("scroll-pause", "0"))
                 if pause > 0:
                     if pause == 1 and offset > 0:
@@ -195,10 +195,10 @@
                     continue
                 # overflow > 0, pause == 0
                 if offset >= overflow:
-                    i.style.right = str (round (overflow)) + "px"
+                    i.style.right = f"{overflow:.4f}px"
                     i.attrs ["scroll-pause"] = str (scroll_pause)
                 else:
-                    i.style.right = str (offset + scroll_delta) + "px"
+                    i.style.right = f"{(offset + document ["app"].clientWidth / 100 * scroll_delta):.4f}px"
 
         def format_time (time):
             seconds = int (time)
