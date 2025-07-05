@@ -98,7 +98,6 @@
             font-weight: normal;
             text-wrap: nowrap;
             overflow: hidden;
-            text-overflow: ellipsis;
             text-align: center;
         }
         #title {
@@ -135,16 +134,20 @@
         p.annotation, p.artist {
             font-size: calc(4 * var(--pc));
         }
-        p.title {
-            flex: 1;
-        }
-        p.artist {
-            padding: 0px calc(5 * var(--pc));
-            flex: 1;
+        div.artist-scroll {
+            margin: 0px calc(5 * var(--pc));
         }
         p.title, p.position {
             font-size: calc(5 * var(--pc));
             font-weight: bold;
+        }
+        div.text-scroll {
+            flex: 1;
+            overflow: hidden;
+        }
+        div.text-scroll > p {
+            position: relative;
+            overflow: visible;
         }
     </style>
 </head>
@@ -161,8 +164,11 @@
         last_poll = {"__timestamp__": 0, "players": []}
         poll_id = -1 # Invalid interval ID
 
-        poll_freq = 830 # ms
-        thumb_freq = 2000
+        poll_freq = 830     # ms
+        thumb_freq = 2000   # ms
+        scroll_freq = 25    # ms
+        scroll_delta = 1    # px
+        scroll_pause = 80   # times scroll_freq in ms
 
         def set_thumb ():
             def complete (res):
@@ -172,6 +178,30 @@
                 ajax.get ("/thumbnail", oncomplete = complete, cache = True)
         window.setInterval (set_thumb, thumb_freq)
 
+        def text_scroll ():
+            global scroll_delta, scroll_pause
+            for i in document.select ("[scroll-pause]"):
+                overflow = i.scrollWidth - i.clientWidth
+                if overflow <= 0:
+                    i.style.right = "0px"
+                    continue
+                offset = int (i.style.right [ : -2])
+                pause = int (i.attrs.get ("scroll-pause", "0"))
+                if pause > 0:
+                    if pause == 1 and offset > 0:
+                        i.style.right = "0px"
+                        i.attrs ["scroll-pause"] = str (scroll_pause)
+                        continue
+                    i.attrs ["scroll-pause"] = str (pause - 1)
+                    continue
+                # overflow > 0, pause == 0
+                if offset >= overflow:
+                    i.style.right = str (round (overflow)) + "px"
+                    i.attrs ["scroll-pause"] = str (scroll_pause)
+                else:
+                    i.style.right = str (offset + scroll_delta) + "px"
+        window.setInterval (text_scroll, scroll_freq)
+
         def format_time (time):
             seconds = int (time)
             if seconds < 3600:
@@ -180,7 +210,7 @@
                 return f"{seconds // 3600}:{(seconds // 60) % 60:02}:{(seconds % 60):02}"
 
         def restart_poll ():
-            global poll_id
+            global poll_freq, poll_id
             window.clearInterval (poll_id)
             window.setTimeout (lambda: ajax.get ("/mpris", oncomplete = poll, cache = True), 0)
             poll_id = window.setInterval (lambda: ajax.get ("/mpris", oncomplete = poll, cache = True), poll_freq)
@@ -297,7 +327,8 @@
                 if select ("input[mpris-cmd='position']").attrs.get ("is-dragging") is None:
                     select ("input[mpris-cmd='position']").value = p ["position"] / p ["length"] if p ["length"] > 0 else 0
                     select (".pos-current").textContent = format_time (p ["position"])
-                select (".artist").textContent = p ["artist"] or p ["playerInstance"] or "N/A"
+                artist = " - ".join (filter (None, [p ["artist"], p ["album"]])) # artist - album / artist / album
+                select (".artist").textContent = artist or p ["playerInstance"] or "N/A"
                 select (".title").textContent = default ("title")
 
         def site_disable ():
@@ -353,11 +384,15 @@
             </div>
             <div class="row">
                 <p class="position pos-current">0:00</p>
-                <p class="annotation artist">Artist</p>
+                <div class="text-scroll artist-scroll">
+                    <p class="artist" style="right: 0px;" scroll-pause="0">Artist</p>
+                </div>
                 <p class="position pos-total">0:00</p>
             </div>
             <div class="row">
-                <p class="title">Title</p>
+                <div class="text-scroll">
+                    <p class="title" style="right: 0px;" scroll-pause="0">Title</p>
+                </div>
             </div>
         </div>
     </div>

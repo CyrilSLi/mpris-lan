@@ -1,8 +1,10 @@
 # Built-in modules:
-import io, json, logging, subprocess
+import io, json, logging, re, subprocess
+from base64 import b64decode
 from datetime import datetime
 from hashlib import sha256
 from html import unescape
+from urllib.parse import unquote
 
 # Third-party modules:
 from flask import Flask, redirect, request, jsonify, send_file
@@ -16,7 +18,7 @@ thumbnails, thumb_files = {}, {}
 
 with open ("control_schema.json") as f:
     control_schema = json.load (f)
-mpris_keys = ["playerInstance", "position", "mpris:length", "status", "volume", "shuffle", "loop", "title", "artist", "mpris:artUrl"]
+mpris_keys = ["playerInstance", "position", "mpris:length", "status", "volume", "shuffle", "loop", "title", "artist", "xesam:album", "mpris:artUrl"]
 
 def run_playerctl (cmd):
     run = subprocess.run (cmd, capture_output = True)
@@ -65,6 +67,7 @@ def mpris ():
             "loop": default (values [6]),
             "title": default (values [7]),
             "artist": default (values [8]),
+            "album": default (values [9]),
         })
         thumbnails [default (values [0])] = default (values [-1]) or None
     for i in thumb_files.copy ():
@@ -89,14 +92,28 @@ def thumbnail ():
         if uri is None:
             resp [player] = placeholder
             continue
-        img = subprocess.run (["curl", "-s", uri], capture_output = True)
-        try:
-            img.check_returncode ()
-        except subprocess.CalledProcessError:
-            resp [player] = placeholder
-            continue
-        thumb_hash = sha256 (img.stdout).hexdigest ()
-        thumb_files [player] = (thumb_hash, img.stdout)
+        if re.fullmatch (r"file:\/\/\/[^\/]+", uri): # File URI
+            try:
+                with open (uri [7 : ], "rb") as f:
+                    img = f.read ()
+            except FileNotFoundError:
+                resp [player] = placeholder
+                continue
+        elif re.fullmatch (r"data:image([^;]*);base64,(.+)", uri): # Data URI in base64
+            img = b64decode (uri.split (",", 1) [1])
+        elif re.fullmatch (r"data:image([^;]*),(.+)", uri): # Data URI in percent encoding (should not happen)
+            uri = unquote (uri.split (",", 1) [1])
+            img = bytes (unquote (uri), "utf-8")
+        else: # use curl as fallback
+            img = subprocess.run (["curl", "-s", uri], capture_output = True)
+            try:
+                img.check_returncode ()
+            except subprocess.CalledProcessError:
+                resp [player] = placeholder
+                continue
+            img = img.stdout
+        thumb_hash = sha256 (img).hexdigest ()
+        thumb_files [player] = (thumb_hash, img)
         resp [player] = f"/thumbnail?hash={thumb_hash}"
     return jsonify (resp)
 
