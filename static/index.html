@@ -289,7 +289,7 @@
                     cmd ["value"] = max (float (player ["position"]) - 10, 0)
                 elif el.attrs ["mpris-action"] == "forward":
                     cmd ["value"] = min (float (player ["position"]) + 10, player ["length"])
-                elif el.attrs ["mpris-action"] == "seek":
+                elif el.attrs ["mpris-action"] == "seek" and el.attrs.get ("is-dragging") is None:
                     cmd ["value"] = float (el.value) * float (player ["length"])
                 else:
                     return
