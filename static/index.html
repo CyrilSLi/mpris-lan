@@ -162,7 +162,7 @@
             i.attrs ["draggable"] = "false"
         selected = set ()
         last_poll = {"__timestamp__": 0, "players": []}
-        poll_id = -1 # Invalid interval ID
+        poll_id, thumb_id, scroll_id = -1, -1, -1 # Invalid interval IDs
 
         poll_freq = 830     # ms
         thumb_freq = 2000   # ms
@@ -170,13 +170,12 @@
         scroll_delta = 1    # px
         scroll_pause = 80   # times scroll_freq in ms
 
+        def thumb_complete (res):
+            for i in document.select ("[mpris-player]"):
+                i.getElementsByClassName ("thumbnail") [0].src = res.json.get (i.attrs ["mpris-player"], "file-earmark-music.svg")
+
         def set_thumb ():
-            def complete (res):
-                for i in document.select ("[mpris-player]"):
-                    i.getElementsByClassName ("thumbnail") [0].src = res.json.get (i.attrs ["mpris-player"], "file-earmark-music.svg")
-            if len (document.select ("[mpris-player]")):
-                ajax.get ("/thumbnail", oncomplete = complete, cache = True)
-        window.setInterval (set_thumb, thumb_freq)
+            ajax.get ("/thumbnail", oncomplete = thumb_complete, cache = True)
 
         def text_scroll ():
             global scroll_delta, scroll_pause
@@ -200,7 +199,6 @@
                     i.attrs ["scroll-pause"] = str (scroll_pause)
                 else:
                     i.style.right = str (offset + scroll_delta) + "px"
-        window.setInterval (text_scroll, scroll_freq)
 
         def format_time (time):
             seconds = int (time)
@@ -209,15 +207,34 @@
             else:
                 return f"{seconds // 3600}:{(seconds // 60) % 60:02}:{(seconds % 60):02}"
 
+        def get_poll ():
+            ajax.get ("/mpris", oncomplete = poll, cache = True)
+
         def restart_poll ():
             global poll_freq, poll_id
             window.clearInterval (poll_id)
-            window.setTimeout (lambda: ajax.get ("/mpris", oncomplete = poll, cache = True), 0)
-            poll_id = window.setInterval (lambda: ajax.get ("/mpris", oncomplete = poll, cache = True), poll_freq)
+            window.setTimeout (get_poll, 0)
+            poll_id = window.setInterval (get_poll, poll_freq)
+
+        def restart_thumb ():
+            global thumb_freq, thumb_id
+            window.clearInterval (thumb_id)
+            window.setTimeout (set_thumb, 0)
+            thumb_id = window.setInterval (set_thumb, thumb_freq)
+
+        def start_thumb_scroll ():
+            global thumb_freq, thumb_id, scroll_freq, scroll_id
+            if thumb_id == -1:
+                window.setTimeout (set_thumb, 0)
+                thumb_id = window.setInterval (set_thumb, thumb_freq)
+            if scroll_id == -1:
+                window.setTimeout (text_scroll, 0)
+                scroll_id = window.setInterval (text_scroll, scroll_freq)
 
         def range_down (ev):
             ev.stopPropagation ()
             ev.target.attrs ["is-dragging"] = "true"
+
         def range_up (ev):
             ev.stopPropagation ()
             click (ev)
@@ -284,9 +301,12 @@
             restart_poll ()
 
         def poll (res):
-            global last_poll
+            global last_poll, thumb_id, scroll_id
             if not res.json:
                 if len (document.select ("[mpris-player]")):
+                    window.clearInterval (thumb_id)
+                    window.clearInterval (scroll_id)
+                    thumb_id, scroll_id = -1, -1
                     num_players (0)
                 num_players (1)
                 return
@@ -296,8 +316,12 @@
             elif res.json ["__timestamp__"] <= last_poll ["__timestamp__"]:
                 window.console.warn ("Poll received out of order")
                 return
-            last_poll = res.json
+            start_thumb_scroll ()
             players = res.json ["players"]
+            if len (players) != len (last_poll ["players"]) or any (
+                (i ["title"], i ["artist"], i ["album"]) != (j ["title"], j ["artist"], j ["album"]) for i, j in zip (players, last_poll ["players"])):
+                restart_thumb () # Thumbnails have likely changed if these fields have changed
+            last_poll = res.json
             num_players (len (players))
             for p, el in zip (players, document.getElementsByClassName ("player")):
                 el.attrs ["mpris-player"] = p ["playerInstance"]
@@ -332,14 +356,18 @@
                 select (".title").textContent = default ("title")
 
         def site_disable ():
-            global poll_id, selected
+            global poll_id, scroll_id, thumb_id, selected
             window.clearInterval (poll_id)
-            selected = set ()
+            window.clearInterval (scroll_id)
+            window.clearInterval (thumb_id)
+            poll_id, scroll_id, thumb_id, selected = -1, -1, -1, set ()
             num_players (0)
             num_players (1)
             document ["enable"].src = "toggle-off.svg"
+
         def site_enable ():
             restart_poll ()
+            start_thumb_scroll ()
             document ["enable"].src = "toggle-on.svg"
 
         document ["enable"].bind ("click", lambda ev: site_enable () if "toggle-off.svg" in ev.target.src else site_disable ())
