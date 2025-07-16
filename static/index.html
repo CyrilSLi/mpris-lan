@@ -3,10 +3,10 @@
 <head>
     <title>mpris-lan</title>
     <meta charset="utf-8">
-    <script src="/static/brython.min.js"></script>
-    <script src="/static/brython_stdlib.min.js"></script>
-    <link rel="icon" href="/static/file-earmark-music.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/static/style.css">
+    <script src="brython.min.js"></script>
+    <script src="brython_stdlib.min.js"></script>
+    <link rel="icon" href="file-earmark-music.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body onload="brython(0)">
     <noscript>
@@ -252,36 +252,36 @@
             <div class="row">
                 <input type="checkbox" id="checkbox" />
                 <h1 id="title">mpris-lan</h1>
-                <img class="icon" src="/static/toggle-on.svg" id="enable">
+                <img class="icon" src="toggle-on.svg" id="enable">
             </div>
         </div>
         <div class="row-item" id="template">
             <div class="row">
                 <div class="col">
                     <input type="checkbox" id="checkbox2" />
-                    <img class="icon" mpris-cmd="stop" src="/static/trash3-fill.svg">
+                    <img class="icon" mpris-cmd="stop" src="trash3-fill.svg">
                 </div>
-                <img class="thumbnail" src="/static/file-earmark-music.svg">
+                <img class="thumbnail" src="file-earmark-music.svg">
                 <div class="col">
                     <div class="row">
-                        <img class="icon" mpris-cmd="previous" src="/static/skip-backward-fill.svg">
-                        <img class="icon" mpris-cmd="play-pause" src="/static/x-circle-fill.svg">
-                        <img class="icon" mpris-cmd="next" src="/static/skip-forward-fill.svg">
+                        <img class="icon" mpris-cmd="previous" src="skip-backward-fill.svg">
+                        <img class="icon" mpris-cmd="play-pause" src="x-circle-fill.svg">
+                        <img class="icon" mpris-cmd="next" src="skip-forward-fill.svg">
                     </div>
                     <div class="row">
-                        <img class="icon" mpris-cmd="loop" mpris-val="playlist" src="/static/x-circle-fill.svg">
+                        <img class="icon" mpris-cmd="loop" mpris-val="playlist" src="x-circle-fill.svg">
                         <div class="col">
                             <p class="annotation">&lt;- Loop</p>
                             <p class="annotation">Shuffle -></p>
                         </div>
-                        <img class="icon" mpris-cmd="shuffle" mpris-val="toggle" src="/static/x-circle-fill.svg">
+                        <img class="icon" mpris-cmd="shuffle" mpris-val="toggle" src="x-circle-fill.svg">
                     </div>
                 </div>
             </div>
             <div class="row">
-                <img class="icon" mpris-cmd="position" mpris-action="rewind" src="/static/rewind-fill.svg">
+                <img class="icon" mpris-cmd="position" mpris-action="rewind" src="rewind-fill.svg">
                 <input type="range" min="0" max="1" value="0.5" step="any" mpris-cmd="position" mpris-action="seek" />
-                <img class="icon" mpris-cmd="position" mpris-action="forward" src="/static/fast-forward-fill.svg">
+                <img class="icon" mpris-cmd="position" mpris-action="forward" src="fast-forward-fill.svg">
             </div>
             <div class="row">
                 <p class="position pos-current">0:00</p>

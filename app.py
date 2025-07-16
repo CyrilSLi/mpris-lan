@@ -78,7 +78,7 @@ def mpris ():
 @app.route ("/thumbnail", methods = ["GET"])
 def thumbnail ():
     global thumbnails, thumb_files
-    placeholder = "/static/file-earmark-music.svg"
+    placeholder = "file-earmark-music.svg"
     thumb_hash = request.args.get ("hash")
     if thumb_hash is not None:
         for i in thumb_files.values ():
@@ -119,7 +119,7 @@ def thumbnail ():
 
 @app.route ("/", methods = ["GET"])
 def index ():
-    return redirect ("/static/index.html", code = 307)
+    return redirect ("static/index.html", code = 307)
 
 if __name__ == "__main__":
     server = make_server ("0.0.0.0", 58468, app)
