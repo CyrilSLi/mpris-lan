@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>mpris-lan Layout Demo</title>
+    <meta charset="utf-8">
+    <link rel="icon" href="/static/file-earmark-music.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <noscript>
+        <p style = "margin: 20px; font-size: 20px; color: black;">JavaScript is required to use this website.</p>
+    </noscript>
+    <div id="app">
+        <div class="row-item">
+            <div class="row">
+                <input type="checkbox" id="checkbox" />
+                <h1 id="title">mpris-lan</h1>
+                <img class="icon" src="/static/toggle-on.svg" id="enable">
+            </div>
+        </div>
+        <div class="row-item">
+            <div class="row">
+                <div class="col">
+                    <input type="checkbox" id="checkbox2" />
+                    <img class="icon" mpris-cmd="stop" src="/static/trash3-fill.svg">
+                </div>
+                <img class="thumbnail" src="/static/file-earmark-music.svg">
+                <div class="col">
+                    <div class="row">
+                        <img class="icon" mpris-cmd="previous" src="/static/skip-backward-fill.svg">
+                        <img class="icon" mpris-cmd="play-pause" src="/static/play-fill.svg">
+                        <img class="icon" mpris-cmd="next" src="/static/skip-forward-fill.svg">
+                    </div>
+                    <div class="row">
+                        <img class="icon" mpris-cmd="loop" mpris-val="playlist" src="/static/rewind-fill.svg">
+                        <div class="col">
+                            <p class="annotation">&lt;- Loop</p>
+                            <p class="annotation">Shuffle -></p>
+                        </div>
+                        <img class="icon" mpris-cmd="shuffle" mpris-val="toggle" src="/static/shuffle.svg">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <img class="icon" mpris-cmd="position" mpris-action="rewind" src="/static/rewind-fill.svg">
+                <input type="range" min="0" max="1" value="0.5" step="any" mpris-cmd="position" mpris-action="seek" />
+                <img class="icon" mpris-cmd="position" mpris-action="forward" src="/static/fast-forward-fill.svg">
+            </div>
+            <div class="row">
+                <p class="position pos-current">1:23</p>
+                <div class="text-scroll artist-scroll">
+                    <p class="artist" style="right: 0px;" scroll-pause="0">Artist 1</p>
+                </div>
+                <p class="position pos-total">4:56</p>
+            </div>
+            <div class="row">
+                <div class="text-scroll">
+                    <p class="title" style="right: 0px;" scroll-pause="0">Title 1</p>
+                </div>
+            </div>
+        </div>
+        <div class="row-item">
+            <div class="row">
+                <div class="col">
+                    <input type="checkbox" id="checkbox2" />
+                    <img class="icon" mpris-cmd="stop" src="/static/trash3-fill.svg">
+                </div>
+                <img class="thumbnail" src="/static/file-earmark-music.svg">
+                <div class="col">
+                    <div class="row">
+                        <img class="icon" mpris-cmd="previous" src="/static/skip-backward-fill.svg">
+                        <img class="icon" mpris-cmd="play-pause" src="/static/play-fill.svg">
+                        <img class="icon" mpris-cmd="next" src="/static/skip-forward-fill.svg">
+                    </div>
+                    <div class="row">
+                        <img class="icon" mpris-cmd="loop" mpris-val="playlist" src="/static/rewind-fill.svg">
+                        <div class="col">
+                            <p class="annotation">&lt;- Loop</p>
+                            <p class="annotation">Shuffle -></p>
+                        </div>
+                        <img class="icon" mpris-cmd="shuffle" mpris-val="toggle" src="/static/shuffle.svg">
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <img class="icon" mpris-cmd="position" mpris-action="rewind" src="/static/rewind-fill.svg">
+                <input type="range" min="0" max="1" value="0.5" step="any" mpris-cmd="position" mpris-action="seek" />
+                <img class="icon" mpris-cmd="position" mpris-action="forward" src="/static/fast-forward-fill.svg">
+            </div>
+            <div class="row">
+                <p class="position pos-current">3:21</p>
+                <div class="text-scroll artist-scroll">
+                    <p class="artist" style="right: 0px;" scroll-pause="0">Artist 2</p>
+                </div>
+                <p class="position pos-total">6:54</p>
+            </div>
+            <div class="row">
+                <div class="text-scroll">
+                    <p class="title" style="right: 0px;" scroll-pause="0">Title 2</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

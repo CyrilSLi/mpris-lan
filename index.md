@@ -2,6 +2,8 @@
 
 Control MPRIS-compatible media players over the network using a web interface.
 
+Visit [layout_demo.html](layout_demo.html) to see a static demo of the interface layout.
+
 ## Features
 
 - Play/pause, next, previous
