@@ -1,5 +1,5 @@
 # Built-in modules:
-import io, json, logging, re, subprocess
+import io, json, logging, os, re, subprocess
 from base64 import b64decode
 from datetime import datetime
 from hashlib import sha256
@@ -16,7 +16,7 @@ app = Flask (__name__)
 CORS (app)
 thumbnails, thumb_files = {}, {}
 
-with open ("control_schema.json") as f:
+with open ( os.path.join (os.path.dirname (os.path.abspath (__file__)), "static/control_schema.json")) as f:
     control_schema = json.load (f)
 mpris_keys = ["playerInstance", "position", "mpris:length", "status", "volume", "shuffle", "loop", "title", "artist", "xesam:album", "mpris:artUrl"]
 

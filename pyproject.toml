@@ -25,4 +25,4 @@ mpris-lan = "app:main"
 dependencies = {file = "requirements.txt"}
 
 [tool.setuptools.package-data]
-static = ["*"]
+src = ["*"]
