@@ -121,7 +121,10 @@ def thumbnail ():
 def index ():
     return redirect ("static/index.html", code = 307)
 
-if __name__ == "__main__":
+def main ():
     server = make_server ("0.0.0.0", 58468, app)
     logging.getLogger ("werkzeug").setLevel (logging.ERROR)
     server.serve_forever ()
+
+if __name__ == "__main__":
+    main ()

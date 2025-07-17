@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+version = "1.0.0"
+name = "mpris-lan"
+description = "Control MPRIS-compatible media players over the network using a web interface"
+dynamic = ["dependencies"]
+authors = [
+    {name = "Cyril Li"}
+]
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "https://cyrilsli.github.io/mpris-lan/"
+Repository = "https://github.com/CyrilSLi/mpris-lan.git"
+
+[project.scripts]
+mpris-lan = "app:main"
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
+
+[tool.setuptools.package-data]
+static = ["*"]
