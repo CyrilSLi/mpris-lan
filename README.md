@@ -13,19 +13,24 @@ Visit [layout_demo.html](static/layout_demo.html) to see a static demo of the in
 - Remove player (trash icon)
 - Polling pauses when the web interface is not visible to save resources, also controllable via a toggle button
 
-## Installation
+## Installation & Usage
+
+[playerctl](https://github.com/altdesktop/playerctl), available in most package managers, must be installed and available in the PATH.
+
+### From package
+
+```
+pip install dist/mpris_lan-1.0.0.tar.gz
+mpris-lan
+```
+
+### Manual
 
 ```
 pip install -r requirements.txt
+python src/app.py
 ```
 
-[playerctl](https://github.com/altdesktop/playerctl), available in most package managers, must also be installed.
-
-## Usage
-
-```
-python app.py
-```
 The web interface is available at the computer's local IP address (and [localhost](http://localhost:58468)), port 58468.
 
 ## Todo
