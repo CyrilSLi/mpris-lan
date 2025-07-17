@@ -1,4 +1,5 @@
 LICENSE
+MANIFEST.in
 README.md
 pyproject.toml
 requirements.txt
@@ -11,6 +12,7 @@ src/mpris_lan.egg-info/requires.txt
 src/mpris_lan.egg-info/top_level.txt
 src/static/brython.min.js
 src/static/brython_stdlib.min.js
+src/static/control_schema.json
 src/static/fast-forward-fill.svg
 src/static/file-earmark-music.svg
 src/static/index.html
