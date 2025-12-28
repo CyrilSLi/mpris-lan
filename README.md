@@ -17,11 +17,12 @@ Visit [layout_demo.html](src/static/layout_demo.html) to see a static demo of th
 
 [playerctl](https://github.com/altdesktop/playerctl), available in most package managers, must be installed and available in the PATH.
 
-### From package
+### Using setuptools
 
 ```
-pip install dist/mpris_lan-1.0.0.tar.gz
-mpris-lan
+pip install build
+python -m build
+pip install dist/mpris_lan-*.whl
 ```
 
 ### Manual

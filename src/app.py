@@ -1,3 +1,7 @@
+# Set process title
+from setproctitle import setproctitle
+setproctitle ("mpris-lan")
+
 # Built-in modules:
 import io, json, logging, os, re, subprocess
 from base64 import b64decode

@@ -1,2 +1,0 @@
-[console_scripts]
-mpris-lan = app:main
