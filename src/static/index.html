@@ -20,13 +20,14 @@
         selected = set ()
         last_poll = {"__timestamp__": 0, "players": []}
         poll_id, thumb_id, range_id, scroll_id = -1, -1, -1, -1 # Invalid interval IDs
+        next_range_update = True
 
-        poll_freq = 830      # ms
-        thumb_freq = 2000     # ms
-        scroll_freq = 25      # ms
-        scroll_delta = 0.25   # --pc
-        scroll_pause = 80     # times scroll_freq in ms
-        range_debounce = 100  # ms
+        range_update_delay = 500  # ms
+        thumb_freq = 3000         # ms
+        scroll_freq = 25          # ms
+        scroll_delta = 0.25       # --pc
+        scroll_pause = 80         # times scroll_freq in ms
+        range_debounce = 100      # ms
 
         def thumb_complete (res):
             for i in document.select ("[mpris-player]"):
@@ -70,9 +71,8 @@
 
         def restart_poll ():
             global poll_freq, poll_id
-            window.clearInterval (poll_id)
-            window.setTimeout (get_poll, 0)
-            poll_id = window.setInterval (get_poll, poll_freq)
+            window.clearTimeout (poll_id)
+            poll_id = window.setTimeout (get_poll, 0)
 
         def restart_thumb ():
             global thumb_freq, thumb_id
@@ -99,13 +99,16 @@
             if "is-dragging" in ev.target.attrs:
                 del ev.target.attrs ["is-dragging"]
 
+        def last_poll_player (playerInstance):
+            global last_poll
+            return (p for p in last_poll ["players"] if p ["playerInstance"] == playerInstance)
+
         def range_input (ev):
+            global last_poll
             ev.stopPropagation ()
-            player = ev.target.closest (".player")
-            playerInstance = player.attrs.get ("mpris-player")
-            for i in last_poll ["players"]:
-                if i ["playerInstance"] == playerInstance:
-                    player.getElementsByClassName ("pos-current") [0].textContent = format_time (float (ev.target.value) * float (i ["length"]))
+            playerEl = ev.target.closest (".player")
+            for i in last_poll_player (playerEl.attrs.get ("mpris-player")):
+                playerEl.getElementsByClassName ("pos-current") [0].textContent = format_time (float (ev.target.value) * float (i ["length"]))
 
         def num_players (num):
             curr_num = len (document.getElementsByClassName ("player"))
@@ -125,9 +128,10 @@
                     document.getElementById ("app").appendChild (el)
 
         def click (ev, delayed = False):
-            global selected, last_poll
+            global selected, last_poll, next_range_update, poll_id
             ev.stopPropagation ()
-            playerInstance = ev.target.closest (".player").attrs.get ("mpris-player")
+            playerEl = ev.target.closest (".player")
+            playerInstance = playerEl.attrs.get ("mpris-player")
             if playerInstance is None:
                 return
             el = ev.target
@@ -140,14 +144,20 @@
             if el.attrs.get ("mpris-val"):
                 cmd ["value"] = el.attrs ["mpris-val"]
             elif el.attrs.get ("mpris-action"):
-                player = next ((p for p in last_poll ["players"] if p ["playerInstance"] == playerInstance), None)
+                player = next (last_poll_player (playerInstance), None)
                 if player is None:
                     return
                 cmd ["players"] = [playerInstance] # Actions can only be applied to one player
+                def rewind_forward_estimate (value):
+                    playerEl.getElementsByClassName ("pos-current") [0].textContent = format_time (value)
+                    playerEl.getElementsByClassName ("position-range") [0].value = value / float (player ["length"])
+                    player ["position"] = value
                 if el.attrs ["mpris-action"] == "rewind":
                     cmd ["value"] = max (float (player ["position"]) - 10, 0)
+                    rewind_forward_estimate (cmd ["value"])
                 elif el.attrs ["mpris-action"] == "forward":
                     cmd ["value"] = min (float (player ["position"]) + 10, player ["length"])
+                    rewind_forward_estimate (cmd ["value"])
                 elif el.attrs ["mpris-action"] == "seek":
                     global range_debounce, range_id
                     if not delayed:
@@ -165,15 +175,17 @@
                     cmd ["value"] = float (el.value) * float (player ["length"])
                 else:
                     return
+            window.clearTimeout (poll_id)
+            next_range_update = False
             req = ajax.Ajax ()
             req.bind ("complete", poll)
             req.open ("POST", "/mpris", True)
             req.set_header ("Content-Type", "application/json")
             req.send (window.JSON.stringify (cmd))
-            restart_poll ()
 
         def poll (res):
-            global last_poll, thumb_id, range_id, scroll_id
+            global last_poll, next_range_update, thumb_id, poll_id, range_id, scroll_id, range_update_delay
+            window.clearTimeout (poll_id)
             if not res.json:
                 if len (document.select ("[mpris-player]")):
                     window.clearInterval (thumb_id)
@@ -193,8 +205,13 @@
             if len (players) != len (last_poll ["players"]) or any (
                 (i ["title"], i ["artist"], i ["album"]) != (j ["title"], j ["artist"], j ["album"]) for i, j in zip (players, last_poll ["players"])):
                 restart_thumb () # Thumbnails have likely changed if these fields have changed
+            old_positions = {p ["playerInstance"]: p ["position"] for p in last_poll ["players"]}
             last_poll = res.json
+            if not next_range_update:
+                for p in last_poll ["players"]:
+                    p ["position"] = old_positions.get (p ["playerInstance"], p ["position"])
             num_players (len (players))
+            positions = []
             for p, el in zip (players, document.getElementsByClassName ("player")):
                 el.attrs ["mpris-player"] = p ["playerInstance"]
                 select = lambda x: el.querySelector (x)
@@ -220,19 +237,38 @@
                     "true": "shuffle.svg"
                 }, "shuffle")
                 select (".pos-total").textContent = format_time (p ["length"])
-                if range_id == -1 and select ("input[mpris-cmd='position']").attrs.get ("is-dragging") is None:
+                if next_range_update and range_id == -1 and select ("input[mpris-cmd='position']").attrs.get ("is-dragging") is None:
                     select ("input[mpris-cmd='position']").value = p ["position"] / p ["length"] if p ["length"] > 0 else 0
                     select (".pos-current").textContent = format_time (p ["position"])
                 artist = " - ".join (filter (None, [p ["artist"], p ["album"]])) # artist - album / artist / album
                 select (".artist").textContent = artist or p ["playerInstance"] or "N/A"
                 select (".title").textContent = default ("title")
+                if p ["status"] == "Playing":
+                    positions.append (float (p ["position"]))
+
+            if not next_range_update:
+                next_range_update = True
+                poll_id = window.setTimeout (get_poll, range_update_delay)
+                return
+            if positions:
+                positions = sorted (i - int (i) for i in positions)
+                max_gap = (0, 0)
+                for i, j in zip (positions, positions [1 : ] + [positions [0] + 1]):
+                    gap = j - i
+                    if gap > max_gap [1]:
+                        max_gap = (i, gap)
+                delta = (1.5 - (max_gap [0] + max_gap [1] / 2)) % 1 + 0.5 # [0.5, 1.5) seconds
+                poll_id = window.setTimeout (get_poll, delta * 1000)
+            elif "toggle-on.svg" in document ["enable"].src:
+                poll_id = window.setTimeout (get_poll, 1000)
 
         def site_disable ():
-            global poll_id, scroll_id, thumb_id, selected
-            window.clearInterval (poll_id)
+            global next_range_update, poll_id, scroll_id, thumb_id, selected
+            window.clearTimeout (poll_id)
             window.clearInterval (scroll_id)
             window.clearInterval (thumb_id)
             poll_id, scroll_id, thumb_id, selected = -1, -1, -1, set ()
+            next_range_update = True
             num_players (0)
             num_players (1)
             document ["enable"].src = "toggle-off.svg"
@@ -279,7 +315,7 @@
             </div>
             <div class="row">
                 <img class="icon" mpris-cmd="position" mpris-action="rewind" src="rewind-fill.svg">
-                <input type="range" min="0" max="1" value="0.5" step="any" mpris-cmd="position" mpris-action="seek" />
+                <input class="position-range" type="range" min="0" max="1" value="0.5" step="any" mpris-cmd="position" mpris-action="seek" />
                 <img class="icon" mpris-cmd="position" mpris-action="forward" src="fast-forward-fill.svg">
             </div>
             <div class="row">

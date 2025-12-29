@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-version = "1.0.1"
+version = "1.1.0"
 name = "mpris-lan"
 description = "Control MPRIS-compatible media players over the network using a web interface"
 dynamic = ["dependencies"]
