@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <script src="brython.min.js"></script>
     <script src="brython_stdlib.min.js"></script>
+    <script src="media_session.js"></script>
     <link rel="icon" href="file-earmark-music.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -21,6 +22,7 @@
         last_poll = {"__timestamp__": 0, "players": []}
         poll_id, thumb_id, range_id, scroll_id = -1, -1, -1, -1 # Invalid interval IDs
         next_range_update = True
+        use_media_session = False
 
         range_update_delay = 500  # ms
         thumb_freq = 3000         # ms
@@ -193,12 +195,15 @@
                     thumb_id, scroll_id = -1, -1
                     num_players (0)
                 num_players (1)
+                poll_id = window.setTimeout (get_poll, 1000)
                 return
             elif "error" in res.json:
                 window.console.error (res.json ["error"])
+                poll_id = window.setTimeout (get_poll, 1000)
                 return
             elif res.json ["__timestamp__"] <= last_poll ["__timestamp__"]:
                 window.console.warn ("Poll received out of order")
+                poll_id = window.setTimeout (get_poll, 1000)
                 return
             start_thumb_scroll ()
             players = res.json ["players"]
@@ -246,6 +251,12 @@
                 if p ["status"] == "Playing":
                     positions.append (float (p ["position"]))
 
+                if use_media_session:
+                    if len (players) == 1:
+                        window.updateMedia (round (p ["length"]), p ["position"])
+                    else:
+                        window.stopMedia ()
+
             if not next_range_update:
                 next_range_update = True
                 poll_id = window.setTimeout (get_poll, range_update_delay)
@@ -278,8 +289,17 @@
             start_thumb_scroll ()
             document ["enable"].src = "toggle-on.svg"
 
+        def media_session_toggle (ev):
+            global use_media_session
+            use_media_session = not use_media_session
+            if not use_media_session:
+                window.stopMedia ()
+            ev.target.src = "toggle-on.svg" if use_media_session else "toggle-off.svg"
+        document ["media_session"].bind ("click", media_session_toggle)
+
         document ["enable"].bind ("click", lambda ev: site_enable () if "toggle-off.svg" in ev.target.src else site_disable ())
-        document.bind ("visibilitychange", lambda ev: site_disable () if document.hidden else site_enable ())   
+
+        document.bind ("visibilitychange", lambda ev: site_disable () if not use_media_session and document.hidden else site_enable ())   
         restart_poll ()
     </script>
     <div id="app">
@@ -287,6 +307,7 @@
             <div class="row">
                 <input type="checkbox" id="checkbox" />
                 <h1 id="title">mpris-lan</h1>
+                <img class="icon" src="toggle-off.svg" id="media_session" style="margin-right: calc(3 * var(--pc));">
                 <img class="icon" src="toggle-on.svg" id="enable">
             </div>
         </div>
