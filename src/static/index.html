@@ -196,6 +196,7 @@
                     num_players (0)
                 num_players (1)
                 poll_id = window.setTimeout (get_poll, 1000)
+                window.stopMediaSession ()
                 return
             elif "error" in res.json:
                 window.console.error (res.json ["error"])
@@ -255,7 +256,7 @@
                     if len (players) == 1:
                         window.updateMedia (round (p ["length"]), p ["position"])
                     else:
-                        window.stopMedia ()
+                        window.stopMediaSession ()
 
             if not next_range_update:
                 next_range_update = True
@@ -280,6 +281,7 @@
             window.clearInterval (thumb_id)
             poll_id, scroll_id, thumb_id, selected = -1, -1, -1, set ()
             next_range_update = True
+            window.stopMediaSession ()
             num_players (0)
             num_players (1)
             document ["enable"].src = "toggle-off.svg"
@@ -293,13 +295,20 @@
             global use_media_session
             use_media_session = not use_media_session
             if not use_media_session:
-                window.stopMedia ()
+                window.clearMediaSession ()
             ev.target.src = "toggle-on.svg" if use_media_session else "toggle-off.svg"
         document ["media_session"].bind ("click", media_session_toggle)
 
         document ["enable"].bind ("click", lambda ev: site_enable () if "toggle-off.svg" in ev.target.src else site_disable ())
 
-        document.bind ("visibilitychange", lambda ev: site_disable () if not use_media_session and document.hidden else site_enable ())   
+        def visibility_change (ev):
+            if document.hidden:
+                if not use_media_session:
+                    site_disable ()
+            else:
+                site_enable ()
+        document.bind ("visibilitychange", visibility_change)
+
         restart_poll ()
     </script>
     <div id="app">

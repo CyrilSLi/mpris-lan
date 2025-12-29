@@ -70,7 +70,11 @@ window.updateMedia = (length, position) => {
     })).catch(() => {});
 }
 
-window.stopMedia = () => {
+window.stopMediaSession = () => {
+    updateMedia(0.01, 0);
+}
+
+window.clearMediaSession = () => {
     audioEl.src = "";
 }
 
