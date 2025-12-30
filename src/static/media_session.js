@@ -57,6 +57,8 @@ function createSilentAudio(time) {
 }
 
 const audioEl = document.createElement("audio");
+window.audioEl = audioEl;
+// window.mediaSessionAction = null;
 audioEl.src = createSilentAudio(0.01);
 
 window.updateMedia = (length, position) => {
@@ -109,9 +111,9 @@ function updatePositionState() {
             position: audioEl.currentTime
         });
     }
-} */
+}
 
-/* navigator.mediaSession.setActionHandler("previoustrack", () => {
+navigator.mediaSession.setActionHandler("previoustrack", () => {
     window.dispatchEvent(new CustomEvent("mediaSessionEvent", { detail: { type: "previousTrack" } }));
 });
 
@@ -119,12 +121,18 @@ navigator.mediaSession.setActionHandler("nexttrack", () => {
     window.dispatchEvent(new CustomEvent("mediaSessionEvent", { detail: { type: "nextTrack" } }));
 });
 
-navigator.mediaSession.setActionHandler("seekforward", () => {
-    window.dispatchEvent(new CustomEvent("mediaSessionEvent", {detail: { type: "seekForward" } }));
+navigator.mediaSession.setActionHandler("seekforward", (ev) => {
+    window.mediaSessionAction = "seekForward";
+    console.log("seek forward");
+    audioEl.currentTime += 10;
+    updatePositionState();
 });
 
-navigator.mediaSession.setActionHandler("seekbackward", () => {
-    window.dispatchEvent(new CustomEvent("mediaSessionEvent", { detail: { type: "seekBackward" } }));
+navigator.mediaSession.setActionHandler("seekbackward", (ev) => {
+    window.mediaSessionAction = "seekBackward";
+    console.log("seek backward");
+    audioEl.currentTime -= 10;
+    updatePositionState();
 });
 
 navigator.mediaSession.setActionHandler("play", async () => {

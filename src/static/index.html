@@ -254,6 +254,12 @@
 
                 if use_media_session:
                     if len (players) == 1:
+                        if window.audioEl.duration >= 0.5 and window.audioEl.paused:
+                            select ("[mpris-cmd='play-pause']").click ()
+                        """ elif window.mediaSessionAction == "seekForward":
+                            select ("[mpris-action='forward']").click ()
+                        elif window.mediaSessionAction == "seekBackward":
+                            select ("[mpris-action='rewind']").click () """
                         window.updateMedia (round (p ["length"]), p ["position"])
                     else:
                         window.stopMediaSession ()
