@@ -129,8 +129,18 @@
                     del el.attrs ["id"]
                     document.getElementById ("app").appendChild (el)
 
+        def send_cmd (cmd):
+            global next_range_update, poll_id
+            window.clearTimeout (poll_id)
+            next_range_update = False
+            req = ajax.Ajax ()
+            req.bind ("complete", poll)
+            req.open ("POST", "/mpris", True)
+            req.set_header ("Content-Type", "application/json")
+            req.send (window.JSON.stringify (cmd))
+
         def click (ev, delayed = False):
-            global selected, last_poll, next_range_update, poll_id
+            global selected, last_poll
             ev.stopPropagation ()
             playerEl = ev.target.closest (".player")
             playerInstance = playerEl.attrs.get ("mpris-player")
@@ -177,13 +187,7 @@
                     cmd ["value"] = float (el.value) * float (player ["length"])
                 else:
                     return
-            window.clearTimeout (poll_id)
-            next_range_update = False
-            req = ajax.Ajax ()
-            req.bind ("complete", poll)
-            req.open ("POST", "/mpris", True)
-            req.set_header ("Content-Type", "application/json")
-            req.send (window.JSON.stringify (cmd))
+            send_cmd (cmd)
 
         def poll (res):
             global last_poll, next_range_update, thumb_id, poll_id, range_id, scroll_id, range_update_delay
@@ -254,13 +258,7 @@
 
                 if use_media_session:
                     if len (players) == 1:
-                        if window.audioEl.duration >= 0.5 and window.audioEl.paused:
-                            select ("[mpris-cmd='play-pause']").click ()
-                        """ elif window.mediaSessionAction == "seekForward":
-                            select ("[mpris-action='forward']").click ()
-                        elif window.mediaSessionAction == "seekBackward":
-                            select ("[mpris-action='rewind']").click () """
-                        window.updateMedia (round (p ["length"]), p ["position"])
+                        window.updateMedia (p ["length"], p ["position"], p ["status"].lower () == "playing")
                     else:
                         window.stopMediaSession ()
 
@@ -279,6 +277,28 @@
                 poll_id = window.setTimeout (get_poll, delta * 1000)
             elif "toggle-on.svg" in document ["enable"].src:
                 poll_id = window.setTimeout (get_poll, 1000)
+
+        def media_session_event (action, data = None):
+            global last_poll, use_media_session
+            if len (last_poll ["players"]) != 1 or "toggle-on.svg" not in document ["enable"].src:
+                return
+            player = last_poll ["players"] [0]
+            send = lambda cmd, value = None: send_cmd ({
+                "players": [player ["playerInstance"]],
+                "command": cmd
+            } | ({"value": value} if value is not None else {}))
+
+            if action in ("play", "pause"):
+                send ("play-pause")
+            elif action == "seekforward":
+                player ["position"] = min (player ["position"] + 10, float (player ["length"]))
+                send ("position", player ["position"])
+            elif action == "seekbackward":
+                player ["position"] = max (player ["position"] - 10, 0)
+                send ("position", player ["position"])
+            elif action == "seekto":
+                send ("position", data)
+        window.mediaSessionEvent = media_session_event
 
         def site_disable ():
             global next_range_update, poll_id, scroll_id, thumb_id, selected
